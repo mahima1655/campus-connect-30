@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Poppins", "Inter", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +61,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        info: "hsl(var(--info))",
+        category: {
+          exam: "hsl(var(--category-exam))",
+          sports: "hsl(var(--category-sports))",
+          events: "hsl(var(--category-events))",
+          hackathons: "hsl(var(--category-hackathons))",
+          symposium: "hsl(var(--category-symposium))",
+          department: "hsl(var(--category-department))",
+          placement: "hsl(var(--category-placement))",
+          coe: "hsl(var(--category-coe))",
+          office: "hsl(var(--category-office))",
+          staff: "hsl(var(--category-staff))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,25 +84,24 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        shimmer: "shimmer 2s infinite",
+      },
+      boxShadow: {
+        glow: "var(--shadow-glow)",
       },
     },
   },
