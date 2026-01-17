@@ -13,11 +13,11 @@ const Profile: React.FC = () => {
 
   if (!userData) return null;
 
-  const initials = userData.displayName
+  const initials = (userData.displayName || userData.email || 'U')
     .split(' ')
-    .map((n) => n[0])
+    .map((n) => n[0] || '')
     .join('')
-    .toUpperCase();
+    .toUpperCase() || 'U';
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
