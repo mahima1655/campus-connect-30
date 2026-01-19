@@ -118,12 +118,20 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
         title: data.title,
         description: data.description,
         category: data.category as NoticeCategory,
+<<<<<<< HEAD
         department: data.department || undefined,
+=======
+        department: data.department === 'none' ? undefined : data.department,
+>>>>>>> 6b172a790f2fb16702be42ce7412c85b05f6304f
         visibleTo: data.visibleTo as VisibleTo[],
         isPinned: data.isPinned,
         expiryDate: data.expiryDate,
         createdBy: userData.uid,
+<<<<<<< HEAD
         createdByName: userData.displayName || 'Unknown User',
+=======
+        createdByName: userData.displayName || userData.email || 'Unknown',
+>>>>>>> 6b172a790f2fb16702be42ce7412c85b05f6304f
         isApproved: true,
       };
 
