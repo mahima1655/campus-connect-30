@@ -79,11 +79,14 @@ const ForgotPassword: React.FC = () => {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Email</FormLabel>
+                                            <FormLabel htmlFor="forgot-email">Email</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
                                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                                     <Input
+                                                        id="forgot-email"
+                                                        name="email"
+                                                        autoComplete="email"
                                                         placeholder="you@college.edu"
                                                         className="pl-10 input-focus"
                                                         {...field}

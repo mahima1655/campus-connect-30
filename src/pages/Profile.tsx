@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Mail, Building, Calendar, Shield } from 'lucide-react';
+import { Mail, Building, Calendar, Shield, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 
 const Profile: React.FC = () => {
@@ -81,6 +81,18 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
+              {userData.year && (
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Year</p>
+                    <p className="font-medium">{userData.year}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Shield className="h-5 w-5 text-primary" />
@@ -104,7 +116,7 @@ const Profile: React.FC = () => {
           </CardContent>
         </Card>
 
-        
+
       </div>
     </Layout>
   );

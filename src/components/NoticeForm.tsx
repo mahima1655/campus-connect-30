@@ -118,20 +118,12 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
         title: data.title,
         description: data.description,
         category: data.category as NoticeCategory,
-<<<<<<< HEAD
-        department: data.department || undefined,
-=======
-        department: data.department === 'none' ? undefined : data.department,
->>>>>>> 6b172a790f2fb16702be42ce7412c85b05f6304f
+        department: (data.department && data.department !== 'none') ? data.department : undefined,
         visibleTo: data.visibleTo as VisibleTo[],
         isPinned: data.isPinned,
         expiryDate: data.expiryDate,
         createdBy: userData.uid,
-<<<<<<< HEAD
-        createdByName: userData.displayName || 'Unknown User',
-=======
         createdByName: userData.displayName || userData.email || 'Unknown',
->>>>>>> 6b172a790f2fb16702be42ce7412c85b05f6304f
         isApproved: true,
       };
 
@@ -180,9 +172,15 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel htmlFor="notice-title">Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter notice title" {...field} className="input-focus" />
+                    <Input
+                      id="notice-title"
+                      name="title"
+                      placeholder="Enter notice title"
+                      {...field}
+                      className="input-focus"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -194,9 +192,11 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel htmlFor="notice-description">Description</FormLabel>
                   <FormControl>
                     <Textarea
+                      id="notice-description"
+                      name="description"
                       placeholder="Enter notice description"
                       rows={4}
                       {...field}
@@ -214,10 +214,10 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel htmlFor="notice-category">Category</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="input-focus">
+                        <SelectTrigger id="notice-category" className="input-focus">
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                       </FormControl>
@@ -239,10 +239,10 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
                 name="department"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Department (Optional)</FormLabel>
+                    <FormLabel htmlFor="notice-department">Department (Optional)</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="input-focus">
+                        <SelectTrigger id="notice-department" className="input-focus">
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
                       </FormControl>
@@ -304,12 +304,13 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                   <FormControl>
                     <Checkbox
+                      id="notice-pinned"
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Pin this notice</FormLabel>
+                    <FormLabel htmlFor="notice-pinned">Pin this notice</FormLabel>
                   </div>
                 </FormItem>
               )}

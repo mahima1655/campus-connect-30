@@ -110,6 +110,12 @@ const NoticeCard: React.FC<NoticeCardProps> = ({
               <Calendar className="h-3.5 w-3.5" />
               <span>{format(notice.createdAt, 'MMM d, yyyy')}</span>
             </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+                {notice.viewCount || 0}
+              </span>
+            </div>
             {notice.expiryDate && (
               <div className="flex items-center gap-1 text-warning shrink-0">
                 <span>Expires: {format(notice.expiryDate, 'MMM d, yyyy')}</span>

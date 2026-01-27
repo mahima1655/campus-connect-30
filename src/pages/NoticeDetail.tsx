@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Notice, getCategoryColor, NOTICE_CATEGORIES } from '@/types';
-import { subscribeToNotices } from '@/services/noticeService';
+import { Notice, getCategoryColor, NOTICE_CATEGORIES, User as AppUser, VisibleTo } from '@/types';
+import { subscribeToNotices, markNoticeAsSeen, subscribeToNoticeViews } from '@/services/noticeService';
+import { getUsersByIds } from '@/services/userService';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import {
     Calendar,
@@ -19,7 +22,9 @@ import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
-    Loader2
+    Loader2,
+    Eye,
+    Users as UsersIcon
 } from 'lucide-react';
 
 const NoticeDetailPage: React.FC = () => {
@@ -27,14 +32,14 @@ const NoticeDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { userData } = useAuth();
     const [notices, setNotices] = useState<Notice[]>([]);
+    const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+    const [noticeViews, setNoticeViews] = useState<{ uid: string; displayName: string; role: string; seenAt: Date }[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingViewers, setLoadingViewers] = useState(false);
 
     useEffect(() => {
         if (!userData) return;
 
-        // We subscribe to all notices to ensure we have the correct sort order for navigation
-        // This is acceptable for a college notice board scale.
-        // Ideally, for larger scale, we might fetch single doc + next/prev query.
         const unsubscribe = subscribeToNotices(userData.role, (fetchedNotices) => {
             setNotices(fetchedNotices);
             setLoading(false);
@@ -51,17 +56,112 @@ const NoticeDetailPage: React.FC = () => {
 
         return {
             currentNotice: notices[index],
-            // Notices are sorted by date desc, so "previous" in index is "newer" (Next button usually goes to newer or older? 
-            // "Next notice" usually implies reading flow. Let's assume list order:
-            // Index 0: Newest
-            // Index 1: Older
-            // "Previous" -> Index - 1 (Newer)
-            // "Next" -> Index + 1 (Older)
-            // Or we can label them explicitly "Newer" / "Older"
             prevNotice: index > 0 ? notices[index - 1] : null,
             nextNotice: index < notices.length - 1 ? notices[index + 1] : null,
         };
     }, [notices, id]);
+
+    // Merge legacy viewers (from notice doc) and new viewers (from separate collection)
+    const mergedViewers = useMemo(() => {
+        const viewersMap = new Map();
+
+        // 1. Add legacy viewers
+        if (currentNotice?.viewedBy) {
+            currentNotice.viewedBy.forEach(v => {
+                if (!v.uid) return;
+
+                // Get name from resolved allUsers if available
+                const user = allUsers.find(u => u.uid === v.uid);
+                const displayName = user?.displayName || v.displayName || 'User';
+                const role = user?.role || v.role || 'unknown';
+
+                viewersMap.set(v.uid, {
+                    uid: v.uid,
+                    displayName,
+                    role,
+                    seenAt: v.seenAt
+                });
+            });
+        }
+
+        // 2. Add new collection viewers (overwrite legacy if exists)
+        noticeViews.forEach(v => {
+            if (!v.uid) return;
+
+            const user = allUsers.find(u => u.uid === v.uid);
+            const displayName = user?.displayName || v.displayName || 'User';
+            const role = user?.role || v.role || 'unknown';
+
+            viewersMap.set(v.uid, {
+                ...v,
+                displayName,
+                role
+            });
+        });
+
+        return Array.from(viewersMap.values()).sort((a, b) => b.seenAt.getTime() - a.seenAt.getTime());
+    }, [currentNotice?.viewedBy, noticeViews, allUsers]);
+
+    // Track views efficiently
+    const [viewMarked, setViewMarked] = useState(false);
+
+    useEffect(() => {
+        if (userData && id && currentNotice && !viewMarked) {
+            // Check if already viewed in the merged state
+            const alreadyViewed = mergedViewers.some(v => v.uid === userData.uid);
+            if (!alreadyViewed) {
+                setViewMarked(true); // Prevent multiple attempts if it fails
+                markNoticeAsSeen(
+                    id,
+                    userData.uid,
+                    userData.displayName || 'User',
+                    userData.role
+                ).catch(err => {
+                    console.error('Failed to mark notice as seen. This is likely a Firebase Permission issue.', err);
+                });
+            }
+        }
+    }, [id, userData, currentNotice, noticeViews.length, viewMarked]);
+
+    // Subscribe to views for this notice
+    useEffect(() => {
+        if (!id) return;
+        const unsubscribe = subscribeToNoticeViews(id, (views) => {
+            setNoticeViews(views);
+        });
+        return () => unsubscribe();
+    }, [id]);
+
+    // Resolve missing names for legacy or incomplete viewer data
+    useEffect(() => {
+        const resolveNames = async () => {
+            const uidsToResolve = mergedViewers
+                .filter(v => !v.displayName || v.displayName === 'User' || v.displayName === 'Legacy User' || v.displayName === 'Unknown User')
+                .map(v => v.uid);
+
+            if (uidsToResolve.length > 0 && !loadingViewers) {
+                setLoadingViewers(true);
+                try {
+                    const resolvedUsers = await getUsersByIds(uidsToResolve);
+                    setAllUsers(prev => {
+                        // Merge with existing users in state
+                        const userMap = new Map();
+                        prev.forEach(u => userMap.set(u.uid, u));
+                        resolvedUsers.forEach(u => userMap.set(u.uid, u));
+                        return Array.from(userMap.values());
+                    });
+                } catch (error) {
+                    console.error('Error resolving viewer names:', error);
+                } finally {
+                    setLoadingViewers(false);
+                }
+            }
+        };
+
+        if (mergedViewers.length > 0) {
+            resolveNames();
+        }
+    }, [mergedViewers.length]);
 
     if (loading) {
         return (
@@ -156,6 +256,97 @@ const NoticeDetailPage: React.FC = () => {
                             <span className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 {format(currentNotice.createdAt, 'PPP')}
+                            </span>
+                            <span className="flex items-center gap-2">
+                                <Eye className="h-4 w-4" />
+                                <Sheet>
+                                    <SheetTrigger asChild>
+                                        <button
+                                            id="view-count-trigger"
+                                            className="hover:underline cursor-pointer decoration-dotted underline-offset-4 outline-none"
+                                        >
+                                            {mergedViewers.length} views
+                                        </button>
+                                    </SheetTrigger>
+                                    <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
+                                        <SheetHeader className="p-6 border-b shrink-0">
+                                            <SheetTitle className="flex items-center gap-2">
+                                                <UsersIcon className="h-5 w-5 text-primary" />
+                                                View Information
+                                            </SheetTitle>
+                                            <SheetDescription>
+                                                Detailed list of users who have viewed this notice and their viewing time.
+                                            </SheetDescription>
+                                        </SheetHeader>
+
+                                        <div className="p-6 bg-muted/30 border-b space-y-4 shrink-0">
+                                            <div>
+                                                <p className="text-xs uppercase font-bold text-muted-foreground tracking-wider mb-2">Notice Audience</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {currentNotice.visibleTo.map(role => (
+                                                        <Badge key={role} variant="outline" className="capitalize bg-background">
+                                                            {role}
+                                                        </Badge>
+                                                    ))}
+                                                    {currentNotice.department && (
+                                                        <Badge variant="outline" className="bg-background">
+                                                            {currentNotice.department} Dept.
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <ScrollArea className="flex-1">
+                                            <div className="p-0">
+                                                {(userData?.role === 'admin' || userData?.role === 'teacher') ? (
+                                                    <div className="divide-y">
+                                                        {mergedViewers && mergedViewers.length > 0 ? (
+                                                            mergedViewers.map((view) => {
+                                                                const displayName = view.displayName || 'User ' + (view.uid?.substring(0, 5) || '???');
+                                                                return (
+                                                                    <div key={`${view.uid}-${view.seenAt.getTime()}`} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/30 transition-colors">
+                                                                        <Avatar className="h-10 w-10 shrink-0">
+                                                                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                                                                                {displayName[0] || 'U'}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex items-center justify-between mb-0.5">
+                                                                                <p className="font-semibold text-sm truncate">{displayName}</p>
+                                                                                <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded uppercase">
+                                                                                    {view.role || 'User'}
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                                                <Calendar className="h-3 w-3" />
+                                                                                {format(view.seenAt, "MMM d, h:mm a")}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <div className="px-6 py-12 text-center text-muted-foreground">
+                                                                {loadingViewers ? (
+                                                                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-primary" />
+                                                                ) : (
+                                                                    <Eye className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                                                )}
+                                                                <p>{loadingViewers ? 'Loading viewer details...' : 'No views recorded yet'}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="px-6 py-12 text-center text-muted-foreground">
+                                                        <UsersIcon className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                                        <p className="text-sm">Detailed view counts are available for Teachers and Admins only.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </ScrollArea>
+                                    </SheetContent>
+                                </Sheet>
                             </span>
                         </div>
                     </div>

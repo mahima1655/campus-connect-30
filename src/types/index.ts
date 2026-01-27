@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'teacher' | 'admin';
 
-export type NoticeCategory = 
+export type NoticeCategory =
   | 'exam'
   | 'sports'
   | 'events'
@@ -20,6 +20,7 @@ export interface User {
   displayName: string;
   role: UserRole;
   department?: string;
+  year?: string;
   createdAt: Date;
   photoURL?: string;
 }
@@ -40,6 +41,8 @@ export interface Notice {
   expiryDate?: Date;
   isPinned: boolean;
   isApproved: boolean;
+  viewCount?: number;
+  viewedBy?: { uid: string; displayName: string; role: string; seenAt: Date }[];
 }
 
 export interface NoticeStats {
@@ -71,6 +74,13 @@ export const DEPARTMENTS = [
   'Information Technology',
   'Chemical',
   'Biotechnology',
+];
+
+export const STUDENT_YEARS = [
+  '1st Year',
+  '2nd Year',
+  '3rd Year',
+  '4th Year',
 ];
 
 export const getCategoryColor = (category: NoticeCategory): string => {

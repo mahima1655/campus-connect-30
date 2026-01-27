@@ -31,6 +31,9 @@ const Notices: React.FC = () => {
     (searchParams.get('category') as NoticeCategory) || 'all'
   );
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
   const [formOpen, setFormOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -50,14 +53,25 @@ const Notices: React.FC = () => {
   }, [userData]);
 
   const filteredNotices = useMemo(() => {
-    return notices.filter((notice) => {
+    const filtered = notices.filter((notice) => {
       const matchesSearch = notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         notice.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || notice.category === selectedCategory;
       const matchesDepartment = selectedDepartment === 'all' || notice.department === selectedDepartment;
-      return matchesSearch && matchesCategory && matchesDepartment;
+
+      const noticeDate = new Date(notice.createdAt);
+      const matchesStartDate = !startDate || noticeDate >= startDate;
+      const matchesEndDate = !endDate || noticeDate <= endDate;
+
+      return matchesSearch && matchesCategory && matchesDepartment && matchesStartDate && matchesEndDate;
     });
-  }, [notices, searchQuery, selectedCategory, selectedDepartment]);
+
+    return [...filtered].sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+  }, [notices, searchQuery, selectedCategory, selectedDepartment, sortBy, startDate, endDate]);
 
   const handleEdit = (notice: Notice) => {
     setEditingNotice(notice);
@@ -130,6 +144,12 @@ const Notices: React.FC = () => {
           selectedDepartment={selectedDepartment}
           onDepartmentChange={setSelectedDepartment}
           departments={DEPARTMENTS}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
         />
 
         {/* Results count */}

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserRole, DEPARTMENTS } from '@/types';
+import { UserRole, DEPARTMENTS, STUDENT_YEARS } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,6 +39,7 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
   role: z.enum(['student', 'teacher', 'admin']),
   department: z.string().optional(),
+  year: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
@@ -72,6 +73,7 @@ const Auth: React.FC = () => {
       confirmPassword: '',
       role: 'student',
       department: '',
+      year: '',
     },
   });
 
@@ -101,7 +103,8 @@ const Auth: React.FC = () => {
         data.password,
         data.displayName,
         data.role as UserRole,
-        data.department
+        data.department,
+        data.year
       );
       toast.success('Account created successfully!');
       navigate('/dashboard');
@@ -147,11 +150,14 @@ const Auth: React.FC = () => {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel htmlFor="login-email">Email</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
+                                id="login-email"
+                                name="email"
+                                autoComplete="email"
                                 placeholder="you@college.edu"
                                 className="pl-10 input-focus"
                                 {...field}
@@ -167,11 +173,14 @@ const Auth: React.FC = () => {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Password</FormLabel>
+                          <FormLabel htmlFor="login-password">Password</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
+                                id="login-password"
+                                name="password"
+                                autoComplete="current-password"
                                 type="password"
                                 placeholder="••••••••"
                                 className="pl-10 input-focus"
@@ -207,11 +216,14 @@ const Auth: React.FC = () => {
                       name="displayName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Full Name</FormLabel>
+                          <FormLabel htmlFor="register-name">Full Name</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
+                                id="register-name"
+                                name="displayName"
+                                autoComplete="name"
                                 placeholder="John Doe"
                                 className="pl-10 input-focus"
                                 {...field}
@@ -227,11 +239,14 @@ const Auth: React.FC = () => {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel htmlFor="register-email">Email</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
+                                id="register-email"
+                                name="email"
+                                autoComplete="email"
                                 placeholder="you@college.edu"
                                 className="pl-10 input-focus"
                                 {...field}
@@ -248,9 +263,12 @@ const Auth: React.FC = () => {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Password</FormLabel>
+                            <FormLabel htmlFor="register-password">Password</FormLabel>
                             <FormControl>
                               <Input
+                                id="register-password"
+                                name="password"
+                                autoComplete="new-password"
                                 type="password"
                                 placeholder="••••••"
                                 className="input-focus"
@@ -266,9 +284,12 @@ const Auth: React.FC = () => {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirm</FormLabel>
+                            <FormLabel htmlFor="register-confirm">Confirm</FormLabel>
                             <FormControl>
                               <Input
+                                id="register-confirm"
+                                name="confirmPassword"
+                                autoComplete="new-password"
                                 type="password"
                                 placeholder="••••••"
                                 className="input-focus"
@@ -285,10 +306,10 @@ const Auth: React.FC = () => {
                       name="role"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Role</FormLabel>
+                          <FormLabel htmlFor="register-role">Role</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="input-focus">
+                              <SelectTrigger id="register-role" className="input-focus">
                                 <SelectValue placeholder="Select your role" />
                               </SelectTrigger>
                             </FormControl>
@@ -302,30 +323,58 @@ const Auth: React.FC = () => {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={registerForm.control}
-                      name="department"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Department (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="input-focus">
-                                <SelectValue placeholder="Select department" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {DEPARTMENTS.map((dept) => (
-                                <SelectItem key={dept} value={dept}>
-                                  {dept}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="department"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel htmlFor="register-department">Department (Optional)</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger id="register-department" className="input-focus">
+                                  <SelectValue placeholder="Select department" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {DEPARTMENTS.map((dept) => (
+                                  <SelectItem key={dept} value={dept}>
+                                    {dept}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {registerForm.watch('role') === 'student' && (
+                        <FormField
+                          control={registerForm.control}
+                          name="year"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel htmlFor="register-year">Year</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger id="register-year" className="input-focus">
+                                    <SelectValue placeholder="Select year" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {STUDENT_YEARS.map((year) => (
+                                    <SelectItem key={year} value={year}>
+                                      {year}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       )}
-                    />
+                    </div>
                     <Button type="submit" className="w-full btn-hero" disabled={isLoading}>
                       {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Create Account

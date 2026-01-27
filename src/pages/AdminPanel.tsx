@@ -46,7 +46,8 @@ import {
     Loader2,
     Shield,
     GraduationCap,
-    UserCog
+    UserCog,
+    Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -55,7 +56,7 @@ const AdminPanel: React.FC = () => {
     const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [notices, setNotices] = useState<Notice[]>([]);
-    const [stats, setStats] = useState({ total: 0, byCategory: {} as Record<NoticeCategory, number> });
+    const [stats, setStats] = useState({ total: 0, totalViews: 0, byCategory: {} as Record<NoticeCategory, number> });
     const [loading, setLoading] = useState(true);
 
     // User Delete State
@@ -296,6 +297,7 @@ const AdminPanel: React.FC = () => {
                                                 <TableHead>Author</TableHead>
                                                 <TableHead>Category</TableHead>
                                                 <TableHead>Date</TableHead>
+                                                <TableHead className="text-center">Views</TableHead>
                                                 <TableHead className="text-center">Pin</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
@@ -303,7 +305,7 @@ const AdminPanel: React.FC = () => {
                                         <TableBody>
                                             {notices.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                                                         <div className="flex flex-col items-center gap-2">
                                                             <FileText className="h-8 w-8 opacity-20" />
                                                             <p>No notices found in the system</p>
@@ -336,6 +338,11 @@ const AdminPanel: React.FC = () => {
                                                         </TableCell>
                                                         <TableCell className="text-sm text-muted-foreground">
                                                             {notice.createdAt.toLocaleDateString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="secondary" className="font-normal">
+                                                                {notice.viewCount || 0}
+                                                            </Badge>
                                                         </TableCell>
                                                         <TableCell className="text-center">
                                                             <Button
@@ -396,6 +403,7 @@ const AdminPanel: React.FC = () => {
                                                 <TableHead>User</TableHead>
                                                 <TableHead>Email</TableHead>
                                                 <TableHead>Department</TableHead>
+                                                <TableHead>Year</TableHead>
                                                 <TableHead>Role</TableHead>
                                                 <TableHead>Joined</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
@@ -420,13 +428,14 @@ const AdminPanel: React.FC = () => {
                                                     </TableCell>
                                                     <TableCell className="text-muted-foreground">{user.email}</TableCell>
                                                     <TableCell>{user.department || '-'}</TableCell>
+                                                    <TableCell>{user.year || '-'}</TableCell>
                                                     <TableCell>
                                                         <Select
                                                             value={user.role}
                                                             onValueChange={(value) => handleRoleChange(user.uid, value as UserRole)}
                                                             disabled={user.uid === userData?.uid}
                                                         >
-                                                            <SelectTrigger className="w-28">
+                                                            <SelectTrigger id={`role-select-${user.uid}`} className="w-28">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -473,6 +482,14 @@ const AdminPanel: React.FC = () => {
                                             <span className="font-medium">Total Notices</span>
                                         </div>
                                         <span className="text-2xl font-bold">{stats.total}</span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <Eye className="h-5 w-5 text-blue-600" />
+                                            <span className="font-medium">Total Views</span>
+                                        </div>
+                                        <span className="text-2xl font-bold">{stats.totalViews}</span>
                                     </div>
 
                                     <div className="grid gap-3 sm:grid-cols-2">

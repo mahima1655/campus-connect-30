@@ -9,13 +9,18 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-  getDocs
+  getDocs,
+  arrayUnion,
+  increment,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Notice, NoticeCategory, VisibleTo, UserRole } from '@/types';
 import { uploadFile } from './storageService';
 
 const NOTICES_COLLECTION = 'notices';
+const VIEWS_COLLECTION = 'notice_views';
 
 export const createNotice = async (
   notice: Omit<Notice, 'id' | 'createdAt'>,
@@ -146,18 +151,28 @@ export const subscribeToNotices = (
         expiryDate: data.expiryDate?.toDate(),
         isPinned: data.isPinned,
         isApproved: data.isApproved,
+        viewCount: (data.viewCount || 0) + (data.viewedBy?.length || 0),
+        viewedBy: data.viewedBy?.map((v: any) => {
+          if (typeof v === 'string') {
+            return { uid: v, displayName: 'User', role: 'unknown', seenAt: data.createdAt?.toDate() || new Date() };
+          }
+          return {
+            uid: v.uid || '',
+            displayName: v.displayName || 'User',
+            role: v.role || 'unknown',
+            seenAt: v.seenAt?.toDate() || new Date()
+          };
+        }) || [],
       };
 
-      // Filter based on role
-      if (userRole === 'admin') {
+      // Correct Visibility Logic
+      const isVisible =
+        userRole === 'admin' ||
+        notice.visibleTo.includes(userRole as VisibleTo) ||
+        notice.visibleTo.includes('all');
+
+      if (isVisible) {
         notices.push(notice);
-      } else if (userRole === 'teacher') {
-        notices.push(notice);
-      } else {
-        // Students can't see staff-only notices
-        if (notice.category !== 'staff') {
-          notices.push(notice);
-        }
       }
     });
     callback(notices);
@@ -166,6 +181,7 @@ export const subscribeToNotices = (
 
 export const getNoticeStats = async (): Promise<{
   total: number;
+  totalViews: number;
   byCategory: Record<NoticeCategory, number>;
 }> => {
   const snapshot = await getDocs(collection(db, NOTICES_COLLECTION));
@@ -182,13 +198,81 @@ export const getNoticeStats = async (): Promise<{
     staff: 0,
   };
 
+  let totalViews = 0;
+
   snapshot.forEach((doc) => {
-    const category = doc.data().category as NoticeCategory;
+    const data = doc.data();
+    const category = data.category as NoticeCategory;
     stats[category]++;
+    totalViews += (data.viewCount || 0) + (data.viewedBy?.length || 0);
   });
 
   return {
     total: snapshot.size,
+    totalViews,
     byCategory: stats,
   };
+};
+
+export const markNoticeAsSeen = async (
+  noticeId: string,
+  userId: string,
+  displayName: string,
+  role: string
+): Promise<void> => {
+  const viewDocId = `${noticeId}_${userId}`;
+  const viewRef = doc(db, VIEWS_COLLECTION, viewDocId);
+
+  try {
+    // Check if user has already viewed this notice to prevent double counting
+    const viewSnap = await getDoc(viewRef);
+
+    if (!viewSnap.exists()) {
+      // 1. Create the unique view record
+      await setDoc(viewRef, {
+        noticeId,
+        uid: userId,
+        displayName,
+        role,
+        seenAt: Timestamp.now()
+      });
+
+      // 2. Increment the aggregate count on the notice itself
+      const noticeRef = doc(db, NOTICES_COLLECTION, noticeId);
+      await updateDoc(noticeRef, {
+        viewCount: increment(1)
+      });
+    }
+  } catch (err) {
+    console.error('Error marking notice as seen:', err);
+  }
+};
+
+export const subscribeToNoticeViews = (
+  noticeId: string,
+  callback: (views: { uid: string; displayName: string; role: string; seenAt: Date }[]) => void
+): (() => void) => {
+  // Remove orderBy to avoid index requirement; sort in client instead
+  const q = query(
+    collection(db, VIEWS_COLLECTION),
+    where('noticeId', '==', noticeId)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const views = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        uid: data.uid,
+        displayName: data.displayName || 'Unknown',
+        role: data.role || 'unknown',
+        seenAt: data.seenAt?.toDate() || new Date()
+      };
+    })
+      .sort((a, b) => b.seenAt.getTime() - a.seenAt.getTime()); // Sort on client
+    callback(views);
+  }, (error) => {
+    console.error('Error subscribing to notice views:', error);
+    // Return empty array if no permission to avoid crash
+    callback([]);
+  });
 };

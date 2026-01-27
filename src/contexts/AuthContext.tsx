@@ -16,7 +16,7 @@ interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string, role: UserRole, department?: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, role: UserRole, department?: string, year?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -55,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           displayName: data.displayName,
           role: data.role,
           department: data.department,
+          year: data.year,
           createdAt: data.createdAt?.toDate() || new Date(),
           photoURL: data.photoURL,
         });
@@ -87,6 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               displayName: data.displayName,
               role: data.role,
               department: data.department,
+              year: data.year,
               createdAt: data.createdAt?.toDate() || new Date(),
               photoURL: data.photoURL,
             });
@@ -108,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, displayName: string, role: UserRole, department?: string) => {
+  const signUp = async (email: string, password: string, displayName: string, role: UserRole, department?: string, year?: string) => {
     const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
     await updateProfile(user, { displayName });
@@ -118,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       displayName,
       role,
       department: department || null,
+      year: year || null,
       createdAt: serverTimestamp(),
       photoURL: null,
     });
