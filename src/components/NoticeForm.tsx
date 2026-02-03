@@ -37,15 +37,26 @@ import { CalendarIcon, Upload, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import UserSelect from './UserSelect';
 
 const noticeSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
   category: z.string().min(1, 'Please select a category'),
+  customCategory: z.string().optional(),
   department: z.string().optional(),
   visibleTo: z.array(z.string()).min(1, 'Select at least one visibility option'),
+  targetUids: z.array(z.string()).optional(),
   isPinned: z.boolean(),
   expiryDate: z.date().optional(),
+}).refine((data) => {
+  if (data.category === 'other' && (!data.customCategory || data.customCategory.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please enter a custom category name",
+  path: ["customCategory"],
 });
 
 type NoticeFormData = z.infer<typeof noticeSchema>;
@@ -73,12 +84,17 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
       title: editingNotice?.title || '',
       description: editingNotice?.description || '',
       category: editingNotice?.category || '',
+      customCategory: '',
       department: editingNotice?.department || '',
       visibleTo: editingNotice?.visibleTo || ['student', 'teacher', 'admin'],
+      targetUids: editingNotice?.targetUids || [],
       isPinned: editingNotice?.isPinned || false,
       expiryDate: editingNotice?.expiryDate,
     },
   });
+
+  const selectedCategory = form.watch('category');
+  const visibleTo = form.watch('visibleTo');
 
   React.useEffect(() => {
     if (editingNotice) {
@@ -86,8 +102,10 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
         title: editingNotice.title,
         description: editingNotice.description,
         category: editingNotice.category,
+        customCategory: '',
         department: editingNotice.department || '',
         visibleTo: editingNotice.visibleTo,
+        targetUids: editingNotice.targetUids || [],
         isPinned: editingNotice.isPinned,
         expiryDate: editingNotice.expiryDate,
       });
@@ -96,8 +114,10 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
         title: '',
         description: '',
         category: '',
+        customCategory: '',
         department: '',
         visibleTo: ['student', 'teacher', 'admin'],
+        targetUids: [],
         isPinned: false,
         expiryDate: undefined,
       });
@@ -117,9 +137,10 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
       const noticeData = {
         title: data.title,
         description: data.description,
-        category: data.category as NoticeCategory,
+        category: data.category === 'other' ? data.customCategory! : data.category,
         department: (data.department && data.department !== 'none') ? data.department : undefined,
         visibleTo: data.visibleTo as VisibleTo[],
+        targetUids: data.targetUids,
         isPinned: data.isPinned,
         expiryDate: data.expiryDate,
         createdBy: userData.uid,
@@ -227,12 +248,34 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
                             {cat.label}
                           </SelectItem>
                         ))}
+                        <SelectItem value="other">Other (Dynamic)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {selectedCategory === 'other' && (
+                <FormField
+                  control={form.control}
+                  name="customCategory"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="custom-category">Custom Category Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="custom-category"
+                          placeholder="Enter new category name"
+                          {...field}
+                          className="input-focus"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
@@ -266,11 +309,12 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
               name="expiryDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Expiry Date (Optional)</FormLabel>
+                  <FormLabel htmlFor="notice-expiry-trigger">Expiry Date (Optional)</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
+                          id="notice-expiry-trigger"
                           variant="outline"
                           className={cn(
                             'w-full pl-3 text-left font-normal input-focus',
@@ -299,6 +343,68 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
 
             <FormField
               control={form.control}
+              name="visibleTo"
+              render={() => (
+                <FormItem>
+                  <FormLabel id="label-visible-to">Visible To</FormLabel>
+                  <div className="flex flex-wrap gap-4" aria-labelledby="label-visible-to">
+                    {['student', 'teacher', 'admin'].map((role) => (
+                      <FormField
+                        key={role}
+                        control={form.control}
+                        name="visibleTo"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                id={`visible-to-${role}`}
+                                checked={field.value?.includes(role)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, role])
+                                    : field.onChange(field.value?.filter((val: string) => val !== role));
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel htmlFor={`visible-to-${role}`} className="font-normal capitalize cursor-pointer">
+                              {role}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {(userData?.role === 'admin' || userData?.role === 'teacher') && (
+              <FormField
+                control={form.control}
+                name="targetUids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel htmlFor="target-uids-select">Target Specific Users (Optional)</FormLabel>
+                    <FormControl>
+                      <UserSelect
+                        id="target-uids-select"
+                        selectedUids={field.value || []}
+                        onChange={field.onChange}
+                        allowedRoles={visibleTo}
+                      />
+                    </FormControl>
+                    <p className="text-[0.8rem] text-muted-foreground">
+                      If users are selected, only they (and admins) will see this notice.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
               name="isPinned"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -310,14 +416,14 @@ const NoticeForm: React.FC<NoticeFormProps> = ({
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="notice-pinned">Pin this notice</FormLabel>
+                    <FormLabel htmlFor="notice-pinned" className="cursor-pointer">Pin this notice</FormLabel>
                   </div>
                 </FormItem>
               )}
             />
 
             <div className="space-y-2">
-              <FormLabel>Attachment (Optional)</FormLabel>
+              <FormLabel htmlFor="file-upload">Attachment (Optional)</FormLabel>
               <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
                 <input
                   type="file"

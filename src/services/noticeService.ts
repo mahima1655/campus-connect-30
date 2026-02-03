@@ -52,6 +52,7 @@ export const createNotice = async (
     category: notice.category,
     department: notice.department || null, // Convert undefined to null
     visibleTo: notice.visibleTo,
+    targetUids: notice.targetUids || [],
     createdBy: notice.createdBy,
     createdByName: notice.createdByName,
     isPinned: notice.isPinned,
@@ -123,6 +124,7 @@ export const deleteNotice = async (noticeId: string, attachmentUrl?: string): Pr
 
 export const subscribeToNotices = (
   userRole: UserRole,
+  userId: string,
   callback: (notices: Notice[]) => void
 ): (() => void) => {
   let q = query(
@@ -142,6 +144,7 @@ export const subscribeToNotices = (
         category: data.category,
         department: data.department,
         visibleTo: data.visibleTo,
+        targetUids: data.targetUids || [],
         attachmentUrl: data.attachmentUrl,
         attachmentName: data.attachmentName,
         attachmentType: data.attachmentType,
@@ -166,10 +169,15 @@ export const subscribeToNotices = (
       };
 
       // Correct Visibility Logic
+      // 1. Admins see everything
+      // 2. If targetUids exist, only those users see it
+      // 3. Otherwise, check visibleTo roles
       const isVisible =
         userRole === 'admin' ||
-        notice.visibleTo.includes(userRole as VisibleTo) ||
-        notice.visibleTo.includes('all');
+        (notice.targetUids && notice.targetUids.length > 0
+          ? notice.targetUids.includes(userId)
+          : notice.visibleTo.includes(userRole as VisibleTo) ||
+          notice.visibleTo.includes('all'));
 
       if (isVisible) {
         notices.push(notice);
@@ -224,11 +232,11 @@ export const markNoticeAsSeen = async (
   const viewRef = doc(db, VIEWS_COLLECTION, viewDocId);
 
   try {
-    // Check if user has already viewed this notice to prevent double counting
+    // Check if user has already viewed this notice in the new system
     const viewSnap = await getDoc(viewRef);
 
     if (!viewSnap.exists()) {
-      // 1. Create the unique view record
+      // 1. Create the unique view record in the new collection
       await setDoc(viewRef, {
         noticeId,
         uid: userId,
@@ -237,11 +245,23 @@ export const markNoticeAsSeen = async (
         seenAt: Timestamp.now()
       });
 
-      // 2. Increment the aggregate count on the notice itself
+      // 2. Increment notice viewCount ONLY if user is not in legacy viewedBy array
       const noticeRef = doc(db, NOTICES_COLLECTION, noticeId);
-      await updateDoc(noticeRef, {
-        viewCount: increment(1)
-      });
+      const noticeSnap = await getDoc(noticeRef);
+      if (noticeSnap.exists()) {
+        const noticeData = noticeSnap.data();
+        const legacyViewers = noticeData.viewedBy || [];
+        const isLegacyViewer = legacyViewers.some((v: any) => {
+          const vUid = typeof v === 'string' ? v : v.uid;
+          return vUid === userId;
+        });
+
+        if (!isLegacyViewer) {
+          await updateDoc(noticeRef, {
+            viewCount: increment(1)
+          });
+        }
+      }
     }
   } catch (err) {
     console.error('Error marking notice as seen:', err);

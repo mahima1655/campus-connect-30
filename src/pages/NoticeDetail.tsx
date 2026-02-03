@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notice, getCategoryColor, NOTICE_CATEGORIES, User as AppUser, VisibleTo } from '@/types';
-import { subscribeToNotices, markNoticeAsSeen, subscribeToNoticeViews } from '@/services/noticeService';
+import { subscribeToNotices, markNoticeAsSeen, subscribeToNoticeViews, updateNotice } from '@/services/noticeService';
 import { getUsersByIds } from '@/services/userService';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ const NoticeDetailPage: React.FC = () => {
     useEffect(() => {
         if (!userData) return;
 
-        const unsubscribe = subscribeToNotices(userData.role, (fetchedNotices) => {
+        const unsubscribe = subscribeToNotices(userData.role, userData.uid, (fetchedNotices) => {
             setNotices(fetchedNotices);
             setLoading(false);
         });
@@ -162,6 +162,20 @@ const NoticeDetailPage: React.FC = () => {
             resolveNames();
         }
     }, [mergedViewers.length]);
+
+    // Lazy Sync: Update the notice document's cached viewCount if it's out of sync with the actual unique count
+    useEffect(() => {
+        if (currentNotice && mergedViewers.length > 0) {
+            const currentCachedTotal = (currentNotice.viewCount || 0) + (currentNotice.viewedBy?.length || 0);
+            if (currentCachedTotal !== mergedViewers.length) {
+                console.log(`Syncing view count for notice ${id}: cached ${currentCachedTotal} vs actual ${mergedViewers.length}`);
+                const newViewCount = Math.max(0, mergedViewers.length - (currentNotice.viewedBy?.length || 0));
+                updateNotice(currentNotice.id, {
+                    viewCount: newViewCount
+                }).catch(err => console.error('Failed to sync view count:', err));
+            }
+        }
+    }, [mergedViewers.length, currentNotice?.id]);
 
     if (loading) {
         return (

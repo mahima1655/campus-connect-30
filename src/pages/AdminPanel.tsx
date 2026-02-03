@@ -89,7 +89,9 @@ const AdminPanel: React.FC = () => {
             }
         };
 
-        const unsubscribeNotices = subscribeToNotices('admin', (fetchedNotices) => {
+        if (!userData) return;
+
+        const unsubscribeNotices = subscribeToNotices('admin', userData.uid, (fetchedNotices) => {
             setNotices(fetchedNotices);
             setLoading(false);
         });
@@ -98,7 +100,7 @@ const AdminPanel: React.FC = () => {
         fetchStats();
 
         return () => unsubscribeNotices();
-    }, []);
+    }, [userData]);
 
     const handleRoleChange = async (userId: string, newRole: UserRole) => {
         try {

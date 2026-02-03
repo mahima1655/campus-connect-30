@@ -44,7 +44,7 @@ const Notices: React.FC = () => {
   useEffect(() => {
     if (!userData) return;
 
-    const unsubscribe = subscribeToNotices(userData.role, (fetchedNotices) => {
+    const unsubscribe = subscribeToNotices(userData.role, userData.uid, (fetchedNotices) => {
       setNotices(fetchedNotices);
       setLoading(false);
     });

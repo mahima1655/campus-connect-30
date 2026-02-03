@@ -27,7 +27,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!userData) return;
 
-    const unsubscribe = subscribeToNotices(userData.role, (fetchedNotices) => {
+    const unsubscribe = subscribeToNotices(userData.role, userData.uid, (fetchedNotices) => {
       setNotices(fetchedNotices);
       setLoading(false);
     });
@@ -65,7 +65,7 @@ const Dashboard: React.FC = () => {
       color: 'text-success',
       bg: 'bg-green-500/10',
     },
-    
+
   ];
 
   return (

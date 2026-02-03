@@ -10,7 +10,8 @@ export type NoticeCategory =
   | 'placement'
   | 'coe'
   | 'office'
-  | 'staff';
+  | 'staff'
+  | string;
 
 export type VisibleTo = 'student' | 'teacher' | 'admin' | 'all';
 
@@ -32,6 +33,7 @@ export interface Notice {
   category: NoticeCategory;
   department?: string;
   visibleTo: VisibleTo[];
+  targetUids?: string[]; // Added for specific user targeting
   attachmentUrl?: string;
   attachmentName?: string;
   attachmentType?: 'pdf' | 'image';
@@ -83,8 +85,8 @@ export const STUDENT_YEARS = [
   '4th Year',
 ];
 
-export const getCategoryColor = (category: NoticeCategory): string => {
-  const categoryMap: Record<NoticeCategory, string> = {
+export const getCategoryColor = (category: string): string => {
+  const categoryMap: Record<string, string> = {
     exam: 'bg-red-500/10 text-red-600 border-red-200',
     sports: 'bg-green-500/10 text-green-600 border-green-200',
     events: 'bg-purple-500/10 text-purple-600 border-purple-200',
@@ -96,5 +98,5 @@ export const getCategoryColor = (category: NoticeCategory): string => {
     office: 'bg-teal-500/10 text-teal-600 border-teal-200',
     staff: 'bg-gray-500/10 text-gray-600 border-gray-200',
   };
-  return categoryMap[category];
+  return categoryMap[category] || 'bg-primary/10 text-primary border-primary/20'; // Default for dynamic categories
 };
